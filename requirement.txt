@@ -1,0 +1,58 @@
+# --- Search Agent Dependencies ---
+
+# Wikipedia article access
+wikipedia
+
+# MediaWiki / Wikimedia Commons API support
+pywikibot
+
+# Google Dataset Search via Google API Client (or choose a 3rd party API)
+google-api-python-client
+
+# GitHub REST API wrapper
+PyGithub
+
+# --- LangGraph and Orchestration ---
+
+# Core LangGraph orchestration framework
+langgraph
+
+# LangChain core utilities (required by LangGraph)
+langchain-core
+langchain>=0.0.131     # latest stable LangChain, supports agents and tools
+langchain-openai
+
+# LangGraph SDK and checkpoint (optional, useful for advanced features)
+langgraph-sdk
+langgraph-checkpoint
+
+# --- Neo4j ---
+
+# Official Python Neo4j driver for Aura and standalone
+neo4j
+
+# Optional for Neo4j GenAI features / GraphRAG
+neo4j-genai
+
+# --- Async / HTTP / Production Utilities ---
+
+# Async HTTP client (needed for many API calls)
+httpx>=0.25.0
+
+# Fast JSON serialization used by LangGraph and others
+orjson>=3.9.7,<3.10.17
+
+# Retry patterns in async calls
+tenacity>=8.0.0
+
+# Async server and HTTP transport (optional, prod setups)
+uvicorn>=0.26.0
+sse-starlette>=2.1.0,<2.2.0
+httptools>=0.5.0
+
+# Structured logging and serialization
+structlog>=24.1.0
+cloudpickle>=3.0.0
+jsonschema-rs>=0.20.0
+
+dotenv
