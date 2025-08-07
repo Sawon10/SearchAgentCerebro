@@ -59,11 +59,16 @@ def extract_search_phrase_from_query(user_query: str) -> str:
     The prompt instructs the LLM to return a short phrase or keyword to search in Neo4j.
     """
     system_msg = SystemMessage(
-        content="You are a helpful assistant that extracts the main concept or keyword from a user's natural language query as a concise search phrase."
+        content=(f"You are an AI assistant that extracts the core subject or concept from a user's query. "
+                f"Your job is to return only the key topic the query is about, such as a technical term, library name, or concept."
+                F"Return a **single phrase** in its **singular canonical form** only."
+)
     )
     human_msg = HumanMessage(
-        content=f"Extract the most relevant concept or keyword to use for a Neo4j search from this user query:\n'''{user_query}'''"
+        content=f"Extract the main search topic from this user query:\n'''{user_query}'''"
     )
+
+
     response = llm.predict_messages([system_msg, human_msg])
     # The response is the output text containing the search phrase
     search_phrase = response.content.strip().strip('"\'')  # remove quotes if present
