@@ -19,29 +19,43 @@ def insert_structured_data_to_neo4j(data, driver):
     with driver.session() as session:
         concept = data.get("concept")
         if concept:
-            session.run(
-                """
-                MERGE (c:Concept {name: $name})
-                SET c.description = $description
-                """,
-                name=concept.get("name", "Unknown Concept"),
-                description=concept.get("description", ""),
-            )
+            desc = concept.get("description", "")
+            # Filter for known agent/system messages
+            system_phrases = [
+                "The agent was stopped",
+                "iteration limit",
+                "time limit"
+            ]
+            if any(phrase in desc for phrase in system_phrases):
+                print(f"Skipping system/noise concept: {desc}")
+            else:
+                session.run(
+                    """
+                    MERGE (c:Concept {name: $name})
+                    SET c.description = $description
+                    """,
+                    name=concept.get("name", "Unknown Concept"),
+                    description=concept.get("description", ""),
+                )
 
         wikipedia_data = data.get("wikipedia")
         if wikipedia_data:
-            session.run(
-                """
-                MERGE (w:WikipediaArticle {title: $title})
-                SET w.summary = $summary, w.url = $url
-                MERGE (c:Concept {name: $concept_name})
-                MERGE (c)-[:HAS_WIKIPEDIA_SUMMARY]->(w)
-                """,
-                title=wikipedia_data.get("title", ""),
-                summary=wikipedia_data.get("summary", ""),
-                url=wikipedia_data.get("url", ""),
-                concept_name=concept.get("name", "Unknown Concept"),
-            )
+            title = wikipedia_data.get("title")
+            if title:  # Only insert if title is not None and not empty
+                session.run(
+                    """
+                    MERGE (w:WikipediaArticle {title: $title})
+                    SET w.summary = $summary, w.url = $url
+                    MERGE (c:Concept {name: $concept_name})
+                    MERGE (c)-[:HAS_WIKIPEDIA_SUMMARY]->(w)
+                    """,
+                    title=title,
+                    summary=wikipedia_data.get("summary", ""),
+                    url=wikipedia_data.get("url", ""),
+                    concept_name=concept.get("name", "Unknown Concept"),
+                )
+            else:
+                print("Skipped WikipediaArticle insert: missing or empty 'title'.")
 
         for repo in data.get("repositories", []):
             session.run(

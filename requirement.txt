@@ -56,3 +56,5 @@ cloudpickle>=3.0.0
 jsonschema-rs>=0.20.0
 
 dotenv
+keybert
+sentence-transformers

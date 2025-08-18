@@ -2,7 +2,7 @@ from langgraph.graph import StateGraph, START, END
 from langchain_openai import ChatOpenAI
 
 from Search_Tools import neo4j_search
-from Search_ReAct_Agent import get_search_agent, parse_output_with_llm, extract_search_phrase_from_query
+from Search_ReAct_Agent import get_search_agent, parse_output_with_llm, extract_keywords_keybert
 from Neo4j_setup import insert_structured_data_to_neo4j, driver
 
 
@@ -13,17 +13,22 @@ from Neo4j_setup import insert_structured_data_to_neo4j, driver
 def neo4j_search_node(state):
     # Get the user query
     query = state["user_query"]
-    search_keyword = extract_search_phrase_from_query(query)
-    cypher_query = (
-        f"""
+
+    # 🔑 Extract multiple keywords/phrases (semantic)
+    keywords = extract_keywords_keybert(query, top_n=5)
+
+    cypher_query = """
         MATCH (c:Concept)
-        WHERE toLower(c.name) CONTAINS toLower('{search_keyword}')
+        WITH c,
+             [kw IN $keywords WHERE toLower(c.name) CONTAINS toLower(kw)] AS matched
+        WHERE size(matched) > 0
         OPTIONAL MATCH (c)-[r]->(x)
-        RETURN c, collect(r) as rels, collect(x) as linked
-        LIMIT 5
-        """
-    )
-    results = neo4j_search(cypher_query)
+        RETURN c, matched, size(matched) AS score, collect(r) AS rels, collect(x) AS linked
+        ORDER BY score DESC
+        LIMIT 20
+    """
+
+    results = neo4j_search(cypher_query, params={"keywords": [kw.lower() for kw in keywords]})
     if isinstance(results, list):
         state["neo4j_results"] = results
         state["neo4j_hit"] = bool(results)
@@ -46,12 +51,29 @@ def neo4j_check_node(state):
 def agent_search_node(state):
     if not state.get("use_neo4j"):
         agent = get_search_agent()
-        result = agent.invoke({"input": state["user_query"]})
+        result = safe_invoke(agent, {"input": state["user_query"]})
         if isinstance(result, dict):
             state["agent_response"] = result.get("output", "")
         else:
             state["agent_response"] = str(result)
     return state
+
+def safe_invoke(agent, input_message, max_length=2000):
+    # Truncate user query
+    if isinstance(input_message, dict):
+        if "input" in input_message and len(input_message["input"]) > max_length:
+            input_message["input"] = input_message["input"][:max_length] + "..."
+
+    # Run the agent
+    result = agent.invoke(input_message)
+
+    # If the result is very long, cut it down before returning
+    if isinstance(result, dict) and "output" in result:
+        if len(result["output"]) > 4000:  # adjust threshold
+            result["output"] = result["output"][:4000] + "..."
+    return result
+
+
 
 def parser_node(state):
     if not state.get("use_neo4j") and state.get("agent_response"):
@@ -60,9 +82,14 @@ def parser_node(state):
     return state
 
 def neo4j_insert_node(state):
-    if not state.get("use_neo4j") and state.get("parsed_data"):
+    if not state.get("use_neo4j") and state.get("parsed_data") is not None:
         insert_structured_data_to_neo4j(state["parsed_data"], driver)
+    else:
+        # Optionally log or set error state
+        if not state.get("parsed_data"):
+            print("[Neo4j Insert] No parsed data to insert.")
     return state
+
 
 def return_node(state):
     if state.get("use_neo4j"):
@@ -101,7 +128,7 @@ graph = builder.compile()
 
 if __name__ == "__main__":
     # Input query from user
-    user_query = "Explain hash maps with examples, find datasets about hash maps, and GitHub repos implementing them."
+    user_query = "Give me some insights on how to reverse a binary tree in Python."
     state = {"user_query": user_query}
     result = graph.invoke(state)
     print("\n=== Final Response ===\n")

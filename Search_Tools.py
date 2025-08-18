@@ -11,11 +11,7 @@ load_dotenv()
 
 
 @tool("neo4j_search", description="Run a Cypher query against the Neo4j database and return the results.")
-def neo4j_search(cypher_query: str):
-    """
-    Runs the provided Cypher query string on the configured Neo4j instance.
-    Expects NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD in your .env file.
-    """
+def neo4j_search(cypher_query: str, params: dict = None):
     uri = os.getenv("NEO4J_URI")
     user = os.getenv("NEO4J_USER")
     password = os.getenv("NEO4J_PASSWORD")
@@ -25,7 +21,7 @@ def neo4j_search(cypher_query: str):
         driver = GraphDatabase.driver(uri, auth=(user, password))
         results = []
         with driver.session() as session:
-            query_result = session.run(cypher_query)
+            query_result = session.run(cypher_query, params or {})
             for record in query_result:
                 results.append(record.data())
         driver.close()
