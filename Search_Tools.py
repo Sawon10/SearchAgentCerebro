@@ -10,7 +10,6 @@ from neo4j import GraphDatabase
 load_dotenv()
 
 
-@tool("neo4j_search", description="Run a Cypher query against the Neo4j database and return the results.")
 def neo4j_search(cypher_query: str, params: dict = None):
     uri = os.getenv("NEO4J_URI")
     user = os.getenv("NEO4J_USER")

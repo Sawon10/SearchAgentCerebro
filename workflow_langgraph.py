@@ -29,9 +29,20 @@ def neo4j_search_node(state):
     """
 
     results = neo4j_search(cypher_query, params={"keywords": [kw.lower() for kw in keywords]})
+    formatted = []
     if isinstance(results, list):
-        state["neo4j_results"] = results
-        state["neo4j_hit"] = bool(results)
+        for rec in results:
+            concept = rec.get("c", {})
+            formatted.append({
+                "concept_name": concept.get("name", ""),
+                "description": concept.get("description", ""),
+                "matched_keywords": rec.get("matched", []),
+                "score": rec.get("score", 0),
+                "relations": [str(r) for r in rec.get("rels", [])],
+                "linked_nodes": [str(x) for x in rec.get("linked", [])],
+            })
+        state["neo4j_results"] = formatted
+        state["neo4j_hit"] = bool(formatted)
     else:
         state["neo4j_results"] = []
         state["neo4j_hit"] = False
@@ -128,7 +139,7 @@ graph = builder.compile()
 
 if __name__ == "__main__":
     # Input query from user
-    user_query = "Give me some insights on how to reverse a binary tree in Python."
+    user_query = "What is the latest research on deep learning?"
     state = {"user_query": user_query}
     result = graph.invoke(state)
     print("\n=== Final Response ===\n")

@@ -1,5 +1,4 @@
 import json
-import spacy
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 from langchain.schema import SystemMessage, HumanMessage
@@ -7,6 +6,7 @@ from langchain.agents import initialize_agent, AgentType
 from Search_Tools import wikipedia_search, wikimedia_commons_search, google_dataset_search, github_search, neo4j_search
 from Neo4j_setup import insert_structured_data_to_neo4j, driver
 from langchain.memory import ConversationBufferWindowMemory
+from langchain.prompts import SystemMessagePromptTemplate
 from keybert import KeyBERT
 from sentence_transformers import SentenceTransformer
 
@@ -20,6 +20,12 @@ kw_model = KeyBERT(model=embedding_model)
 
 def get_search_agent():
     # Initialize your LLM (OpenAI GPT-4 here)
+    system_message = SystemMessagePromptTemplate.from_template(
+        "You are an expert research and retrieval assistant. "
+        "lets say for programming or technical queries, prefer Github and Datasets. "
+        "For general knowledge, prefer Wikipedia. like this way please reson and select the most relevant tool for the query. "
+        "Be concise, return only factual answers, and include a short summary if multiple tools are used."
+    )
     memory = ConversationBufferWindowMemory(
         k=5,                  # keep only last 5 interactions            
         memory_key="chat_history",
@@ -37,7 +43,7 @@ def get_search_agent():
         handle_parsing_errors=True,
         verbose=True,
         memory=memory,
-        max_iterations=3,  # Limit iterations to avoid infinite loops
+        max_iterations=8,  # Limit iterations to avoid infinite loops
     )
 
     return agent
@@ -82,23 +88,6 @@ def parse_output_with_llm(text):
         print("LLM response was:", response_text)
         return None
     
-# def extract_search_phrase_from_query(user_query: str) -> str:
-
-#     system_msg = SystemMessage(
-#         content=(f"You are an AI assistant that extracts the core subject or concept from a user's query. "
-#                 f"Your job is to return only the key topic the query is about, such as a technical term, library name, or concept."
-#                 f"Return a **single phrase** in its **singular canonical form** only."
-#         )
-#     )
-#     human_msg = HumanMessage(
-#         content=f"Extract the main search topic from this user query:\n'''{user_query}'''"
-#     )
-
-
-#     response = llm.predict_messages([system_msg, human_msg])
-#     # The response is the output text containing the search phrase
-#     search_phrase = response.content.strip().strip('"\'')  # remove quotes if present
-#     return search_phrase/
 
 
 def extract_keywords_keybert(query: str, top_n: int = 5, ngram_range=(1, 3)):

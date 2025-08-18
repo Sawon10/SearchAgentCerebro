@@ -17,27 +17,29 @@ def insert_structured_data_to_neo4j(data, driver):
         return
 
     with driver.session() as session:
-        concept = data.get("concept")
-        if concept:
-            desc = concept.get("description", "")
-            # Filter for known agent/system messages
-            system_phrases = [
-                "The agent was stopped",
-                "iteration limit",
-                "time limit"
-            ]
-            if any(phrase in desc for phrase in system_phrases):
-                print(f"Skipping system/noise concept: {desc}")
-            else:
-                session.run(
-                    """
-                    MERGE (c:Concept {name: $name})
-                    SET c.description = $description
-                    """,
-                    name=concept.get("name", "Unknown Concept"),
-                    description=concept.get("description", ""),
-                )
-
+        if concept and isinstance(concept, dict):
+            concept = data.get("concept")
+            if concept:
+                desc = concept.get("description", "")
+                # Filter for known agent/system messages
+                system_phrases = [
+                    "The agent was stopped",
+                    "iteration limit",
+                    "time limit"
+                ]
+                if any(phrase in desc for phrase in system_phrases):
+                    print(f"Skipping system/noise concept: {desc}")
+                else:
+                    session.run(
+                        """
+                        MERGE (c:Concept {name: $name})
+                        SET c.description = $description
+                        """,
+                        name=concept.get("name", "Unknown Concept"),
+                        description=concept.get("description", ""),
+                    )
+        else:
+            print(f"Skipping insert: concept was {concept} (type {type(concept)})")
         wikipedia_data = data.get("wikipedia")
         if wikipedia_data:
             title = wikipedia_data.get("title")
